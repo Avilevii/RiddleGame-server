@@ -5,24 +5,25 @@ import { getAllRiddles,
          deleteRiddle,
          getById
  } from '../ctrls/riddleCTRL.js';
+import {verifyToken, checkAdminOrUser, checkAdmin} from '../middlewrs/authMiddleware.js'
 
 const router = express.Router();
 
 
 
-router.get('/riddles/getAllRiddles', getAllRiddles);
+router.get('/riddles/getAllRiddles',verifyToken, checkAdminOrUser, getAllRiddles);
 
 
-router.get('/riddles/getById/:id', getById)
+router.get('/riddles/getById/:id',verifyToken, checkAdminOrUser, getById)
 
 
-router.post('/riddles/creatNewRiddle', creatNewRiddle);
+router.post('/riddles/creatNewRiddle',verifyToken, checkAdminOrUser, creatNewRiddle);
 
 
-router.put('/riddles/updateRiddle/:id', updateRiddle)
+router.put('/riddles/updateRiddle/:id',verifyToken, checkAdmin, updateRiddle)
 
 
-router.delete('/riddles/deleteRiddle/:id', deleteRiddle)
+router.delete('/riddles/deleteRiddle/:id',verifyToken,checkAdmin, deleteRiddle)
 
 export default router;
 

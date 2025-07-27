@@ -1,82 +1,90 @@
-import {supabase} from '../dbSql.js';
+import { ObjectId } from 'mongodb';
+import {collectionFn}from '../services/playerService.js';
+
 
 export async function getAllPlayers(req, res){
     try{
-       const {data, error} = await supabase
-       .from('players')
-       .select('*')
-       if(error){
-           console.log({error});
-       }
-    
-     res.status(200).json(data);    
+        const collection = await collectionFn()
+        const players = await collection.find().toArray();
+        res.status(200).json(players);    
     }
     catch(err){
         console.error("Error from getAllPlayers", err)
+        res.status(500).json({massage: "Server error"})
     }
 }
 
 
 export async function getUserById(req, res){
     try{
-        const {name} = req.params;
-        const {data, error} = await supabase
-        .from('players')
-        .select('*')
-        .eq('username', name )
-        .single()
-        if(error){
-            return res.status(500).json({ error: error.message });
+        const {id} = req.params;
+        const playercollection = await collectionFn();
+        const player = await playercollection.findOne({_id: new ObjectId(id) })
+        if(! player){
+            return res.status(404).json({masseg : 'Player not found!'});
         }
-        if(!data){
-            return res.status(404).json({ message: 'User not found' });
-        }
-        res.status(200).json(data);
-    }
+        res.status(200).json(player)
+    }  
     catch(err){
-        console.error("Error", err)
+        console.error("Error", err);
+        res.status(500).json({message: "Server error"})
     }
-    
 }
 
 
-export async function findUser(userName){
+export async function updatePlayer(req, res){
+    const {id} = req.params;
+    const {bestTime} = req.body;
     try{
-    const {data, error } = await supabase
-        .from('players')
-        .select('*')
-        .eq('username', userName);
-
-        if(error){
-            return null;
+        const collection = await collectionFn();
+        if(! ObjectId.isValid(id) || bestTime === undefined){
+            return res.status(400).json({msg: "Id  is not found"})
         }
-        if (!data || data.length === 0) {
-            return null;
+        const player = await collection.findOne({_id: new ObjectId(id)})
+        if(! player){
+            return res.status(404).json({ message: "Player not found" });
         }
-        return data[0]
+        const oldBest = Number(player.bestTime);
+        const newBest = Number(bestTime);
+        console.log("Old bestTime:", oldBest);
+        console.log("New bestTime:", newBest);
+        
+        if(oldBest > newBest){
+            await collection.updateOne(
+                { _id: new ObjectId(id) },
+                { $set: { bestTime: newBest } }
+            );
+            return res.status(200).json({ message: "Best time updated!" });
+    } else {
+        return res.status(200).json({ message: "Best time not improved — no update made" });
     }
-     catch(err){
+    }
+    catch(err){
         console.error("Error", err)
+        res.status(500).json({ message: "Server error" });
     }
-    
 }
 
 
 export async function insertInto(req, res){
     try{
-        const {username, bestTime} = req.body;
-        const user = await findUser(username);
-        if(user === null){
-            const {data, error} = await supabase
-            .from('players')
-            .insert({username, bestTime})
-            .single();
-            
-            if(error){
-                return res.status(500).json({ error: error.message });
-            }
-            return res.status(201).json({ message: 'Player inserted', player: data });
-        }  
+        const {username, bestTime, createdAt} = req.body;
+        if(!username|| bestTime === undefined){
+            return res.status(400).json({massege: "You must into value"})
+        }
+        const collection = await collectionFn();
+        const exist = await collection.findOne({username});
+        if(exist){
+            return res.status(400).json({massege: "The name is not valid"})
+        }        
+        const result = await collection.insertOne({
+            username,
+            bestTime,
+            createdAt: new Date(createdAt),
+        })
+        return res.status(201).json({ message: "Player inserted", id: result.insertedId });
+
+
     }
     catch (err) {
     console.error('Unexpected error:', err);
